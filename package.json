@@ -1,6 +1,6 @@
 {
   "name": "backtool",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "This tool cli creates a backend setup with express js mongodb or postgresql",
   "main": "index.js",
   "type": "module",
@@ -14,6 +14,7 @@
   "license": "ISC",
   "dependencies": {
     "bcrypt": "^5.1.1",
+    "bcryptjs": "^3.0.2",
     "chalk": "^5.4.1",
     "commander": "^13.1.0",
     "cors": "^2.8.5",

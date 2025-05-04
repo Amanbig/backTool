@@ -73,7 +73,7 @@ async function generateBackendStructure(projectName, databaseChoice) {
 
     switch (databaseChoice) {
         case 'MongoDB':
-            packagesToInstall.push('mongoose', 'bcrypt');
+            packagesToInstall.push('mongoose', 'bcryptjs');
             dbConfig = `import mongoose from 'mongoose';
 
                   mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/${projectName}', {
@@ -84,7 +84,7 @@ async function generateBackendStructure(projectName, databaseChoice) {
                   mongoose.set('strictQuery', true);`;
             break;
         case 'PostgreSQL':
-            packagesToInstall.push('pg', 'bcrypt');
+            packagesToInstall.push('pg', 'bcryptjs');
             dbConfig = `import { Pool } from 'pg';
 
                   const pool = new Pool({
@@ -106,7 +106,7 @@ async function generateBackendStructure(projectName, databaseChoice) {
                   );`;
             break;
         case 'MySQL':
-            packagesToInstall.push('mysql2', 'bcrypt');
+            packagesToInstall.push('mysql2', 'bcryptjs');
             dbConfig = `import mysql from 'mysql2/promise';
 
                   const pool = mysql.createPool({
@@ -128,7 +128,7 @@ async function generateBackendStructure(projectName, databaseChoice) {
                   );`;
             break;
         case 'SQLite':
-            packagesToInstall.push('sqlite3', 'bcrypt');
+            packagesToInstall.push('sqlite3', 'bcryptjs');
             dbConfig = `import sqlite3 from 'sqlite3';
                   import { open } from 'sqlite';
 
@@ -199,7 +199,8 @@ async function generateBackendStructure(projectName, databaseChoice) {
         await npm.install(packagesToInstall, { cwd: targetDir, save: true });
         spinner.succeed(chalk.green(`Installed packages: ${packagesToInstall.join(', ')}`));
     } catch (err) {
-        spinner.fail(chalk.red(`Error installing packages: ${err}`));
+        spinner.fail(chalk.red(`Error installing packages: ${err.message}`));
+        console.log(chalk.yellow(`Try installing dependencies manually: npm install ${packagesToInstall.join(' ')}`));
         process.exit(1);
     }
 
