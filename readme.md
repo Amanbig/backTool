@@ -44,6 +44,12 @@ Run BackTool without arguments to use interactive prompts:
 backtool
 ```
 
+or directly using:
+
+```bash
+npx backtool@latest
+```
+
 This will display an ASCII banner and prompt for:
 - Project name (e.g., `my-app`)
 - Database choice (MongoDB, MySQL, PostgreSQL, or SQLite)
