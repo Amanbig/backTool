@@ -1,0 +1,21 @@
+{
+  "name": "backtool",
+  "version": "1.0.0",
+  "description": "This tool cli creates a backend setup with express js mongodb or postgresql",
+  "main": "index.js",
+  "type":"module",
+  "bin":{
+    "backtool":"index.js"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Amanpreet",
+  "license": "ISC",
+  "dependencies": {
+    "chalk": "^5.4.1",
+    "figlet": "^1.8.1",
+    "inquirer": "^12.6.0",
+    "ora": "^8.2.0"
+  }
+}
