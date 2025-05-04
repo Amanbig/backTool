@@ -13,11 +13,17 @@
   "author": "Amanpreet",
   "license": "ISC",
   "dependencies": {
+    "bcrypt": "^5.1.1",
     "chalk": "^5.4.1",
+    "commander": "^13.1.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.5.0",
     "express": "^5.1.0",
     "figlet": "^1.8.1",
     "inquirer": "^12.6.0",
     "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.14.1",
+    "npm-programmatic": "^0.0.12",
     "ora": "^8.2.0"
   }
 }

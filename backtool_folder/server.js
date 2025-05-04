@@ -1,10 +1,19 @@
 import express from 'express';
 import './config/database.js';
+import authRouter from './routes/auth.js';
+import authMiddleware from './middleware/auth.js';
 
 const app = express();
+app.use(express.json());
 
 app.get('/', (req, res) => {
   res.json({ message: 'Welcome to your backend!' });
+});
+
+app.use('/auth', authRouter);
+
+app.get('/protected', authMiddleware, (req, res) => {
+  res.json({ message: 'This is a protected route' });
 });
 
 const PORT = process.env.PORT || 8000;
