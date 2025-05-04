@@ -175,6 +175,34 @@ async function generateBackendStructure(projectName, databaseChoice) {
         process.exit(1);
     }
 
+    // Copy server.js file
+    const serverFile = 'server.js';
+    const serverPath = path.join(templateDir, serverFile);
+    try {
+        await fs.access(serverPath);
+        if (await fs.stat(path.join(targetDir, serverFile)).catch(() => false)) {
+            const { overwrite } = await inquirer.prompt([
+                {
+                    type: 'confirm',
+                    name: 'overwrite',
+                    message: chalk.yellow(`File ${serverFile} already exists. Overwrite?`),
+                    prefix: '⚠️',
+                    default: false,
+                },
+            ]);
+            if (!overwrite) {
+                console.log(chalk.blue(`Skipping ${serverFile}`));
+            } else {
+                await fs.cp(serverPath, path.join(targetDir, serverFile));
+            }
+        } else {
+            await fs.cp(serverPath, path.join(targetDir, serverFile));
+        }
+    } catch (err) {
+        console.error(chalk.red(`Server file (server.js) not found in backtool_folder.`));
+        process.exit(1);
+    }
+
     // Write database configuration
     await fs.writeFile(path.join(targetDir, 'config', 'database.js'), dbConfig);
 

@@ -2,9 +2,12 @@ import express from 'express';
 import './config/database.js';
 import authRouter from './routes/auth.js';
 import authMiddleware from './middleware/auth.js';
+import cors from 'cors';
 
 const app = express();
 app.use(express.json());
+
+app.use(cors());
 
 app.get('/', (req, res) => {
   res.json({ message: 'Welcome to your backend!' });
