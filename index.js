@@ -67,8 +67,9 @@ async function generateBackendStructure(projectName, databaseChoice) {
     await fs.mkdir(path.join(targetDir, 'routes'), { recursive: true });
     await fs.mkdir(path.join(targetDir, 'middleware'), { recursive: true });
 
-    // Install required packages
+    // Define packages to install
     let packagesToInstall = ['express', 'dotenv', 'cors'];
+    let devPackagesToInstall = ['nodemon'];
     let dbConfig = '';
 
     switch (databaseChoice) {
@@ -149,6 +150,54 @@ async function generateBackendStructure(projectName, databaseChoice) {
             break;
     }
 
+    // Generate package.json
+    const packageJson = {
+        name: projectName,
+        version: '1.0.0',
+        type: 'module',
+        scripts: {
+            start: 'node server.js',
+            dev: 'nodemon server.js',
+        },
+        dependencies: {
+            express: '^4.18.2',
+            dotenv: '^16.3.1',
+            cors: '^2.8.5',
+            ...(databaseChoice === 'MongoDB' && { mongoose: '^8.0.0', bcryptjs: '^2.4.3' }),
+            ...(databaseChoice === 'PostgreSQL' && { pg: '^8.11.3', bcryptjs: '^2.4.3' }),
+            ...(databaseChoice === 'MySQL' && { mysql2: '^3.6.2', bcryptjs: '^2.4.3' }),
+            ...(databaseChoice === 'SQLite' && { sqlite3: '^5.1.6', bcryptjs: '^2.4.3' }),
+        },
+        devDependencies: {
+            nodemon: '^3.0.1',
+        },
+    };
+
+    const packageJsonPath = path.join(targetDir, 'package.json');
+    try {
+        if (await fs.stat(packageJsonPath).catch(() => false)) {
+            const { overwrite } = await inquirer.prompt([
+                {
+                    type: 'confirm',
+                    name: 'overwrite',
+                    message: chalk.yellow('File package.json already exists. Overwrite?'),
+                    prefix: '⚠️',
+                    default: false,
+                },
+            ]);
+            if (!overwrite) {
+                console.log(chalk.blue('Skipping package.json'));
+            } else {
+                await fs.writeFile(packageJsonPath, JSON.stringify(packageJson, null, 2));
+            }
+        } else {
+            await fs.writeFile(packageJsonPath, JSON.stringify(packageJson, null, 2));
+        }
+    } catch (err) {
+        console.error(chalk.red(`Error writing package.json: ${err}`));
+        process.exit(1);
+    }
+
     // Copy model file
     const modelFile = `user.${databaseChoice.toLowerCase()}.js`;
     const modelPath = path.join(templateDir, 'models', modelFile);
@@ -225,10 +274,11 @@ async function generateBackendStructure(projectName, databaseChoice) {
     const spinner = ora(chalk.blue('Installing packages...')).start();
     try {
         await npm.install(packagesToInstall, { cwd: targetDir, save: true });
-        spinner.succeed(chalk.green(`Installed packages: ${packagesToInstall.join(', ')}`));
+        await npm.install(devPackagesToInstall, { cwd: targetDir, saveDev: true });
+        spinner.succeed(chalk.green(`Installed packages: ${packagesToInstall.concat(devPackagesToInstall).join(', ')}`));
     } catch (err) {
         spinner.fail(chalk.red(`Error installing packages: ${err.message}`));
-        console.log(chalk.yellow(`Try installing dependencies manually: npm install ${packagesToInstall.join(' ')}`));
+        console.log(chalk.yellow(`Try installing dependencies manually: npm install ${packagesToInstall.join(' ')} && npm install --save-dev ${devPackagesToInstall.join(' ')}`));
         process.exit(1);
     }
 

@@ -4,7 +4,7 @@ A CLI tool to generate backend structures for Node.js applications with support 
 
 ## Overview
 
-BackTool simplifies the process of setting up a Node.js backend by generating a complete project structure, including models, database configuration, controllers, routes, and middleware. It supports MongoDB, PostgreSQL, MySQL, and SQLite, allowing developers to quickly scaffold a backend tailored to their preferred database.
+BackTool simplifies the process of setting up a Node.js backend by generating a complete project structure, including a server entry point, models, database configuration, controllers, routes, middleware, and a customized `package.json`. It supports MongoDB, PostgreSQL, MySQL, and SQLite, allowing developers to quickly scaffold a backend tailored to their preferred database.
 
 ## Features
 
@@ -12,9 +12,10 @@ BackTool simplifies the process of setting up a Node.js backend by generating a 
 - **Interactive Prompts**: Uses `inquirer` for styled, user-friendly prompts with custom prefixes and validation.
 - **Visual Feedback**: Includes an ASCII art banner (`figlet`), colored output (`chalk`), and progress spinners (`ora`).
 - **Non-Interactive Mode**: Supports command-line arguments for automation (e.g., `backtool --project my-app --database MongoDB`).
-- **Complete Backend Structure**: Creates directories for `models`, `config`, `controllers`, `routes`, and `middleware`.
-- **Automatic Package Installation**: Installs required dependencies (e.g., `express`, `mongoose`, `pg`, `mysql2`, `sqlite3`) using `npm-programmatic`.
-- **File Overwrite Protection**: Prompts users before overwriting existing files.
+- **Complete Backend Structure**: Creates `server.js`, `package.json`, and directories for `models`, `config`, `controllers`, `routes`, and `middleware`.
+- **Customized package.json**: Generates a `package.json` with the project name, scripts (`start`, `dev`), and dependencies.
+- **Automatic Package Installation**: Installs required dependencies (e.g., `express`, `mongoose`, `pg`, `mysql2`, `sqlite3`) and `nodemon` as a dev dependency.
+- **File Overwrite Protection**: Prompts users before overwriting existing files (e.g., `server.js`, `package.json`, model files).
 - **Extensible**: Easily add new databases or structure components by updating the template folder.
 
 ## Installation
@@ -28,7 +29,7 @@ npm install -g backtool
 Alternatively, clone the repository and link it locally:
 
 ```bash
-git clone https://github.com/Amanbig/backTool.git
+git clone https://github.com/Amanbig/backtool.git
 cd backtool
 npm install
 npm link
@@ -66,6 +67,8 @@ Running BackTool creates the following directory structure in the current workin
 
 ```
 my-app/
+├── server.js
+├── package.json
 ├── config/
 │   └── database.js
 ├── models/
@@ -77,10 +80,11 @@ my-app/
 ├── middleware/
 │   └── auth.js
 ├── node_modules/
-├── package.json
 └── .env
 ```
 
+- **server.js**: Entry point for the Node.js application, setting up the Express server and routes.
+- **package.json**: Includes the project name, scripts (`start: node server.js`, `dev: nodemon server.js`), and dependencies.
 - **config/database.js**: Database connection and table initialization (e.g., `users` table for SQL databases).
 - **models/user.<database>.js**: Model file for the selected database (e.g., `user.mongodb.js`, `user.sqlite.js`).
 - **controllers/**: Logic for handling requests (e.g., user creation, authentication).
@@ -88,6 +92,20 @@ my-app/
 - **middleware/**: Custom middleware (e.g., authentication).
 
 The `users` table/model includes fields: `id`, `username`, `email`, `password`, and `created_at`.
+
+## Running the Application
+
+After generating the project, navigate to the project directory and run:
+
+```bash
+npm start
+```
+
+For development with auto-restart on file changes:
+
+```bash
+npm run dev
+```
 
 ## Supported Databases
 
@@ -100,11 +118,12 @@ The `users` table/model includes fields: `id`, `username`, `email`, `password`, 
 
 BackTool installs the following dependencies in the generated project:
 
-- Core: `express`, `dotenv`, `cors`
-- MongoDB: `mongoose`, `bcrypt`
-- PostgreSQL: `pg`, `bcrypt`
-- MySQL: `mysql2`, `bcrypt`
-- SQLite: `sqlite3`, `bcrypt`
+- **Dependencies**: `express`, `dotenv`, `cors`, and database-specific packages:
+  - MongoDB: `mongoose`, `bcryptjs`
+  - PostgreSQL: `pg`, `bcryptjs`
+  - MySQL: `mysql2`, `bcryptjs`
+  - SQLite: `sqlite3`, `bcryptjs`
+- **Dev Dependencies**: `nodemon`
 
 ## Development
 
@@ -112,13 +131,13 @@ To contribute or modify BackTool:
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/Amanbig/backTool.git
+   git clone https://github.com/Amanbig/backtool.git
    ```
 2. Install dependencies:
    ```bash
    npm install
    ```
-3. Update the `backtool_folder` directory with custom templates.
+3. Update the `backtool_folder` directory with custom templates (e.g., `server.js`, models).
 4. Test locally:
    ```bash
    npm link
@@ -131,4 +150,4 @@ MIT License
 
 ## Contact
 
-For issues or feature requests, open a ticket on the [GitHub repository](https://github.com/Amanbig/backTool).
+For issues or feature requests, open a ticket on the [GitHub repository](https://github.com/Amanbig/backtool).
