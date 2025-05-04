@@ -28,7 +28,7 @@ npm install -g backtool
 Alternatively, clone the repository and link it locally:
 
 ```bash
-git clone https://github.com/yourusername/backtool.git
+git clone https://github.com/Amanbig/backTool.git
 cd backtool
 npm install
 npm link
@@ -112,7 +112,7 @@ To contribute or modify BackTool:
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/yourusername/backtool.git
+   git clone https://github.com/Amanbig/backTool.git
    ```
 2. Install dependencies:
    ```bash
@@ -131,4 +131,4 @@ MIT License
 
 ## Contact
 
-For issues or feature requests, open a ticket on the [GitHub repository](https://github.com/yourusername/backtool).
+For issues or feature requests, open a ticket on the [GitHub repository](https://github.com/Amanbig/backTool).
