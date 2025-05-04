@@ -1,11 +1,13 @@
 import express from 'express';
+import './config/database.js';
 
 const app = express();
 
 app.get('/', (req, res) => {
-  res.send('Hello, world!');
+  res.json({ message: 'Welcome to your backend!' });
 });
 
-app.listen(8000, () => {
-  console.log('Server is running on port 3000');
+const PORT = process.env.PORT || 8000;
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
 });

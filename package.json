@@ -17,6 +17,7 @@
     "express": "^5.1.0",
     "figlet": "^1.8.1",
     "inquirer": "^12.6.0",
+    "jsonwebtoken": "^9.0.2",
     "ora": "^8.2.0"
   }
 }
