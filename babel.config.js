@@ -6,7 +6,7 @@ export default {
             return {
                 visitor: {
                     MetaProperty(path) {
-                        if (path.node.meta.name === 'import' && path.node.property.name === 'meta') {
+                        if (ath.node.meta.name === 'import' && path.node.property.name === 'meta') {
                             // Replace import.meta with a process-based alternative
                             path.replaceWithSourceString('({ url: `file://${__filename}` })');
                         }
