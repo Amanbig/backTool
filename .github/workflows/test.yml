@@ -2,58 +2,39 @@ name: Test BackTool CLI
 
 on:
   push:
-    branches: [master]
+    branches: [ master ]
   pull_request:
-    branches: [master]
+    branches: [ master ]
 
 jobs:
   test:
     runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:latest
-        env:
-          POSTGRES_USER: test
-          POSTGRES_PASSWORD: test
-          POSTGRES_DB: test
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-      mysql:
-        image: mysql:latest
-        env:
-          MYSQL_ROOT_PASSWORD: test
-          MYSQL_DATABASE: test
-        ports:
-          - 3306:3306
-        options: >-
-          --health-cmd "mysqladmin ping -h localhost"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
+    
     steps:
-      - uses: actions/checkout@v4
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-      - run: npm ci
-      - run: npm run test:ci
-      - name: Create temporary directory
-        run: mkdir -p /tmp/backtool-test
-      - name: Test MongoDB setup
-        run: npx backtool --project test-mongo --database MongoDB --force
-        working-directory: /tmp/backtool-test
-      - name: Test PostgreSQL setup
-        run: npx backtool --project test-postgres --database PostgreSQL --force --uri postgres://test:test@localhost:5432/test
-        working-directory: /tmp/backtool-test
-      - name: Test MySQL setup
-        run: npx backtool --project test-mysql --database MySQL --force --uri mysql://root:test@localhost:3306/test
-        working-directory: /tmp/backtool-test
-      - name: Test SQLite setup
-        run: npx backtool --project test-sqlite --database SQLite --force --uri sqlite::memory:
-        working-directory: /tmp/backtool-test
+    - uses: actions/checkout@v3
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+    
+    - name: Clear npm cache
+      run: npm cache clean --force
+    
+    - name: Install dependencies
+      run: npm install
+    
+    - name: Run tests
+      run: npm test -- --verbose
+    
+    - name: Test MongoDB setup
+      run: npx backtool --project test-mongo --database MongoDB
+    
+    - name: Test PostgreSQL setup
+      run: npx backtool --project test-postgres --database PostgreSQL
+    
+    - name: Test MySQL setup
+      run: npx backtool --project test-mysql --database MySQL
+    
+    - name: Test SQLite setup
+      run: npx backtool --project test-sqlite --database SQLite
