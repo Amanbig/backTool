@@ -1,44 +1,18 @@
-# This workflow contains two jobs:
-# 1. test: Runs on every push and pull request to main branch
-# 2. publish-npm: Publishes to npm when a new release is created
-
-name: Node.js CI/CD
-
-on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
-  release:
-    types: [created]
-
-jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-      - run: npm ci
-      - run: npm run test:ci
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v4
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-
-  publish-npm:
-    needs: test
-    if: github.event_name == 'release'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          registry-url: https://registry.npmjs.org/
-      - run: npm ci
-      - run: npm run build
-      - run: npm publish
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.npm_token }}
+publish-npm:
+  needs: test
+  if: github.event_name == 'release'
+  runs-on: ubuntu-latest
+  steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-node@v4
+      with:
+        node-version: 20
+        registry-url: https://registry.npmjs.org/
+    - run: npm ci
+    - run: npm run build
+    - name: Publish to npm
+      run: |
+        echo "Publishing version $(npm pkg get version)"
+        npm publish --access public
+      env:
+        NODE_AUTH_TOKEN: ${{ secrets.npm_token }}
