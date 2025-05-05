@@ -17,9 +17,10 @@ console.log(chalk.cyan(figlet.textSync('BackTool')));
 program
     .name('backtool')
     .description('CLI tool to generate backend structures for Node.js applications')
-    .version('1.0.0')
+    .version('1.0.6')
     .option('-p, --project <name>', 'Specify project name')
-    .option('-d, --database <type>', 'Specify database (MongoDB, MySQL, PostgreSQL, SQLite)');
+    .option('-d, --database <type>', 'Specify database (MongoDB, MySQL, PostgreSQL, SQLite)')
+    .option('-f, --force', 'Force overwrite of existing files without prompting');
 
 async function promptInputs(options) {
     const questions = [];
@@ -31,7 +32,7 @@ async function promptInputs(options) {
             message: chalk.green('What is your project name?'),
             prefix: '📋',
             default: 'my-app',
-            validate: (input) => input.trim() ? true : 'Project name cannot be empty',
+            validate: (input) => (input.trim() ? true : 'Project name cannot be empty'),
         });
     }
 
@@ -48,9 +49,13 @@ async function promptInputs(options) {
     return inquirer.prompt(questions);
 }
 
-async function generateBackendStructure(projectName, databaseChoice) {
+async function generateBackendStructure(projectName, databaseChoice, forceOverwrite = false) {
     const templateDir = path.join(__dirname, 'backtool_folder');
-    const targetDir = process.cwd();
+    // Create a project-specific directory
+    const targetDir = path.join(process.cwd(), projectName);
+
+    // Create the project directory if it doesn't exist
+    await fs.mkdir(targetDir, { recursive: true });
 
     // Check if template directory exists
     try {
@@ -77,78 +82,76 @@ async function generateBackendStructure(projectName, databaseChoice) {
             packagesToInstall.push('mongoose', 'bcryptjs');
             dbConfig = `import mongoose from 'mongoose';
 
-                  mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/${projectName}', {
-                    useNewUrlParser: true,
-                    useUnifiedTopology: true
-                  });
+mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/${projectName}', {
+  useNewUrlParser: true,
+  useUnifiedTopology: true
+});
 
-                  mongoose.set('strictQuery', true);`;
-
-            
+mongoose.set('strictQuery', true);`;
             break;
         case 'PostgreSQL':
             packagesToInstall.push('pg', 'bcryptjs');
             dbConfig = `import { Pool } from 'pg';
 
-                  const pool = new Pool({
-                    user: process.env.PGUSER || 'postgres',
-                    host: process.env.PGHOST || 'localhost',
-                    database: process.env.PGDATABASE || '${projectName}',
-                    password: process.env.PGPASSWORD || '',
-                    port: process.env.PGPORT || 5432
-                  });
+const pool = new Pool({
+  user: process.env.PGUSER || 'postgres',
+  host: process.env.PGHOST || 'localhost',
+  database: process.env.PGDATABASE || '${projectName}',
+  password: process.env.PGPASSWORD || '',
+  port: process.env.PGPORT || 5432
+});
 
-                  await pool.query(
-                    'CREATE TABLE IF NOT EXISTS users (\\n' +
-                    '    id SERIAL PRIMARY KEY,\\n' +
-                    '    username VARCHAR(255) UNIQUE NOT NULL,\\n' +
-                    '    email VARCHAR(255) UNIQUE NOT NULL,\\n' +
-                    '    password VARCHAR(255) NOT NULL,\\n' +
-                    '    created_at TIMESTAMP DEFAULT NOW()\\n' +
-                    ')'
-                  );`;
+await pool.query(
+  'CREATE TABLE IF NOT EXISTS users (\\n' +
+  '    id SERIAL PRIMARY KEY,\\n' +
+  '    username VARCHAR(255) UNIQUE NOT NULL,\\n' +
+  '    email VARCHAR(255) UNIQUE NOT NULL,\\n' +
+  '    password VARCHAR(255) NOT NULL,\\n' +
+  '    created_at TIMESTAMP DEFAULT NOW()\\n' +
+  ')'
+);`;
             break;
         case 'MySQL':
             packagesToInstall.push('mysql2', 'bcryptjs');
             dbConfig = `import mysql from 'mysql2/promise';
 
-                  const pool = mysql.createPool({
-                    host: process.env.MYSQL_HOST || 'localhost',
-                    user: process.env.MYSQL_USER || 'root',
-                    password: process.env.MYSQL_PASSWORD || '',
-                    database: process.env.MYSQL_DATABASE || '${projectName}',
-                    port: process.env.MYSQL_PORT || 3306
-                  });
+const pool = mysql.createPool({
+  host: process.env.MYSQL_HOST || 'localhost',
+  user: process.env.MYSQL_USER || 'root',
+  password: process.env.MYSQL_PASSWORD || '',
+  database: process.env.MYSQL_DATABASE || '${projectName}',
+  port: process.env.MYSQL_PORT || 3306
+});
 
-                  await pool.query(
-                    'CREATE TABLE IF NOT EXISTS users (\\n' +
-                    '    id INT AUTO_INCREMENT PRIMARY KEY,\\n' +
-                    '    username VARCHAR(255) UNIQUE NOT NULL,\\n' +
-                    '    email VARCHAR(255) UNIQUE NOT NULL,\\n' +
-                    '    password VARCHAR(255) NOT NULL,\\n' +
-                    '    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP\\n' +
-                    ')'
-                  );`;
+await pool.query(
+  'CREATE TABLE IF NOT EXISTS users (\\n' +
+  '    id INT AUTO_INCREMENT PRIMARY KEY,\\n' +
+  '    username VARCHAR(255) UNIQUE NOT NULL,\\n' +
+  '    email VARCHAR(255) UNIQUE NOT NULL,\\n' +
+  '    password VARCHAR(255) NOT NULL,\\n' +
+  '    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP\\n' +
+  ')'
+);`;
             break;
         case 'SQLite':
             packagesToInstall.push('sqlite3', 'bcryptjs');
             dbConfig = `import sqlite3 from 'sqlite3';
-                  import { open } from 'sqlite';
+import { open } from 'sqlite';
 
-                  const db = await open({
-                    filename: process.env.SQLITE_DB || './database.sqlite',
-                    driver: sqlite3.Database
-                  });
+const db = await open({
+  filename: process.env.SQLITE_DB || './database.sqlite',
+  driver: sqlite3.Database
+});
 
-                  await db.exec(
-                    'CREATE TABLE IF NOT EXISTS users (\\n' +
-                    '    id INTEGER PRIMARY KEY AUTOINCREMENT,\\n' +
-                    '    username TEXT UNIQUE NOT NULL,\\n' +
-                    '    email TEXT UNIQUE NOT NULL,\\n' +
-                    '    password TEXT NOT NULL,\\n' +
-                    '    created_at DATETIME DEFAULT CURRENT_TIMESTAMP\\n' +
-                    ')'
-                  );`;
+await db.exec(
+  'CREATE TABLE IF NOT EXISTS users (\\n' +
+  '    id INTEGER PRIMARY KEY AUTOINCREMENT,\\n' +
+  '    username TEXT UNIQUE NOT NULL,\\n' +
+  '    email TEXT UNIQUE NOT NULL,\\n' +
+  '    password TEXT NOT NULL,\\n' +
+  '    created_at DATETIME DEFAULT CURRENT_TIMESTAMP\\n' +
+  ')'
+);`;
             break;
     }
 
@@ -179,19 +182,23 @@ async function generateBackendStructure(projectName, databaseChoice) {
     const packageJsonPath = path.join(targetDir, 'package.json');
     try {
         if (await fs.stat(packageJsonPath).catch(() => false)) {
-            const { overwrite } = await inquirer.prompt([
-                {
-                    type: 'confirm',
-                    name: 'overwrite',
-                    message: chalk.yellow('File package.json already exists. Overwrite?'),
-                    prefix: '⚠️',
-                    default: false,
-                },
-            ]);
-            if (!overwrite) {
-                console.log(chalk.blue('Skipping package.json'));
-            } else {
+            if (forceOverwrite) {
                 await fs.writeFile(packageJsonPath, JSON.stringify(packageJson, null, 2));
+            } else {
+                const { overwrite } = await inquirer.prompt([
+                    {
+                        type: 'confirm',
+                        name: 'overwrite',
+                        message: chalk.yellow('File package.json already exists. Overwrite?'),
+                        prefix: '⚠️',
+                        default: false,
+                    },
+                ]);
+                if (!overwrite) {
+                    console.log(chalk.blue('Skipping package.json'));
+                } else {
+                    await fs.writeFile(packageJsonPath, JSON.stringify(packageJson, null, 2));
+                }
             }
         } else {
             await fs.writeFile(packageJsonPath, JSON.stringify(packageJson, null, 2));
@@ -207,21 +214,27 @@ async function generateBackendStructure(projectName, databaseChoice) {
     try {
         await fs.access(modelPath);
         if (await fs.stat(path.join(targetDir, 'models', modelFile)).catch(() => false)) {
-            const { overwrite } = await inquirer.prompt([
-                {
-                    type: 'confirm',
-                    name: 'overwrite',
-                    message: chalk.yellow(`File ${modelFile} already exists. Overwrite?`),
-                    prefix: '⚠️',
-                    default: false,
-                },
-            ]);
-            if (!overwrite) {
-                console.log(chalk.blue(`Skipping ${modelFile}`));
-                return;
+            if (forceOverwrite) {
+                await fs.cp(modelPath, path.join(targetDir, 'models', modelFile));
+            } else {
+                const { overwrite } = await inquirer.prompt([
+                    {
+                        type: 'confirm',
+                        name: 'overwrite',
+                        message: chalk.yellow(`File ${modelFile} already exists. Overwrite?`),
+                        prefix: '⚠️',
+                        default: false,
+                    },
+                ]);
+                if (!overwrite) {
+                    console.log(chalk.blue(`Skipping ${modelFile}`));
+                    return;
+                }
+                await fs.cp(modelPath, path.join(targetDir, 'models', modelFile));
             }
+        } else {
+            await fs.cp(modelPath, path.join(targetDir, 'models', modelFile));
         }
-        await fs.cp(modelPath, path.join(targetDir, 'models', modelFile));
     } catch (err) {
         console.error(chalk.red(`Model file for ${databaseChoice} not found.`));
         process.exit(1);
@@ -233,19 +246,23 @@ async function generateBackendStructure(projectName, databaseChoice) {
     try {
         await fs.access(serverPath);
         if (await fs.stat(path.join(targetDir, serverFile)).catch(() => false)) {
-            const { overwrite } = await inquirer.prompt([
-                {
-                    type: 'confirm',
-                    name: 'overwrite',
-                    message: chalk.yellow(`File ${serverFile} already exists. Overwrite?`),
-                    prefix: '⚠️',
-                    default: false,
-                },
-            ]);
-            if (!overwrite) {
-                console.log(chalk.blue(`Skipping ${serverFile}`));
-            } else {
+            if (forceOverwrite) {
                 await fs.cp(serverPath, path.join(targetDir, serverFile));
+            } else {
+                const { overwrite } = await inquirer.prompt([
+                    {
+                        type: 'confirm',
+                        name: 'overwrite',
+                        message: chalk.yellow(`File ${serverFile} already exists. Overwrite?`),
+                        prefix: '⚠️',
+                        default: false,
+                    },
+                ]);
+                if (!overwrite) {
+                    console.log(chalk.blue(`Skipping ${serverFile}`));
+                } else {
+                    await fs.cp(serverPath, path.join(targetDir, serverFile));
+                }
             }
         } else {
             await fs.cp(serverPath, path.join(targetDir, serverFile));
@@ -285,7 +302,7 @@ async function generateBackendStructure(projectName, databaseChoice) {
         process.exit(1);
     }
 
-    console.log(chalk.green(`🎉 Backend structure generated for ${projectName} with ${databaseChoice} configuration!`));
+    console.log(chalk.green(`🎉 Backend structure generated for ${projectName} with ${databaseChoice} configuration in ${targetDir}!`));
 }
 
 program.action(async (options) => {
@@ -293,7 +310,7 @@ program.action(async (options) => {
     const projectName = options.project || answers.project || 'my-app';
     const database = options.database || answers.database;
 
-    await generateBackendStructure(projectName, database);
+    await generateBackendStructure(projectName, database, options.force);
 });
 
 program.parse(process.argv);
