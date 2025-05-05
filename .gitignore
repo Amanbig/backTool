@@ -3,3 +3,6 @@ bower_components
 dist
 .env
 .eslintrc.js
+
+# Jest coverage directory
+coverage/

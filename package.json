@@ -18,11 +18,8 @@
     "coveragePathIgnorePatterns": [
       "/node_modules/"
     ],
-    "globals": {
-      "NODE_OPTIONS": "--experimental-vm-modules"
-    },
     "transform": {
-      "^.+\\.js$": "babel-jest"
+      "^.+\\.js$": ["babel-jest", { "configFile": "./babel.config.js" }]
     },
     "moduleNameMapper": {
       "^(\\.{1,2}/.*)\\.js$": "$1"
