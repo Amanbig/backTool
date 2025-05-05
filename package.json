@@ -12,7 +12,7 @@
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
     "test:ci": "jest --ci --runInBand --coverage",
-    "build": "babel src -d dist"
+    "build": "babel index.js backtool_folder -d dist"
   },
   "jest": {
     "testEnvironment": "node",
