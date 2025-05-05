@@ -45,6 +45,7 @@
   "author": "Amanpreet",
   "license": "ISC",
   "devDependencies": {
+    "@babel/cli": "^7.27.1",
     "@babel/core": "^7.27.1",
     "@babel/preset-env": "^7.27.1",
     "babel-jest": "^29.7.0",
