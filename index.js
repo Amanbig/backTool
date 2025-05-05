@@ -83,6 +83,8 @@ async function generateBackendStructure(projectName, databaseChoice) {
                   });
 
                   mongoose.set('strictQuery', true);`;
+
+            
             break;
         case 'PostgreSQL':
             packagesToInstall.push('pg', 'bcryptjs');
@@ -163,6 +165,7 @@ async function generateBackendStructure(projectName, databaseChoice) {
             express: '^4.18.2',
             dotenv: '^16.3.1',
             cors: '^2.8.5',
+            jsonwebtoken: '^9.0.2',
             ...(databaseChoice === 'MongoDB' && { mongoose: '^8.0.0', bcryptjs: '^2.4.3' }),
             ...(databaseChoice === 'PostgreSQL' && { pg: '^8.11.3', bcryptjs: '^2.4.3' }),
             ...(databaseChoice === 'MySQL' && { mysql2: '^3.6.2', bcryptjs: '^2.4.3' }),

@@ -1,5 +1,6 @@
 import jwt from 'jsonwebtoken';
-import User from '../models/user.${database}.js';
+import config from '../config.js';
+import User from `../models/user.${config.database}.js`;
 
 const generateToken = (user) => {
     return jwt.sign(

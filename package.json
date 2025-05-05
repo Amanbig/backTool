@@ -1,6 +1,6 @@
 {
   "name": "backtool",
-  "version": "1.0.3",
+  "version": "1.0.5",
   "description": "This tool cli creates a backend setup with express js mongodb or postgresql",
   "main": "index.js",
   "type": "module",
@@ -8,10 +8,23 @@
     "backtool": "index.js"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "test:ci": "jest --ci --runInBand --coverage"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "coveragePathIgnorePatterns": [
+      "/node_modules/"
+    ]
   },
   "author": "Amanpreet",
   "license": "ISC",
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "supertest": "^6.3.4"
+  },
   "dependencies": {
     "bcrypt": "^5.1.1",
     "bcryptjs": "^3.0.2",
