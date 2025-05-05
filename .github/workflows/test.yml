@@ -2,9 +2,9 @@ name: Test BackTool CLI
 
 on:
   push:
-    branches: [ master ]
+    branches: [ main ]
   pull_request:
-    branches: [ master ]
+    branches: [ main ]
 
 jobs:
   test:
@@ -18,11 +18,14 @@ jobs:
       with:
         node-version: '18'
     
+    - name: Clear npm cache
+      run: npm cache clean --force
+    
     - name: Install dependencies
       run: npm install
     
     - name: Run tests
-      run: npm test
+      run: npm test -- --verbose
     
     - name: Test MongoDB setup
       run: npx backtool --project test-mongo --database MongoDB
