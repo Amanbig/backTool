@@ -20,7 +20,8 @@ program
     .version('1.0.6')
     .option('-p, --project <name>', 'Specify project name')
     .option('-d, --database <type>', 'Specify database (MongoDB, MySQL, PostgreSQL, SQLite)')
-    .option('-f, --force', 'Force overwrite of existing files without prompting');
+    .option('-f, --force', 'Force overwrite of existing files without prompting')
+    .option('-u, --uri <uri>', 'Specify database connection URI');
 
 async function promptInputs(options) {
     const questions = [];
@@ -49,12 +50,11 @@ async function promptInputs(options) {
     return inquirer.prompt(questions);
 }
 
-async function generateBackendStructure(projectName, databaseChoice, forceOverwrite = false) {
+async function generateBackendStructure(projectName, databaseChoice, forceOverwrite = false, uri) {
     const templateDir = path.join(__dirname, 'backtool_folder');
-    // Create a project-specific directory
     const targetDir = path.join(process.cwd(), projectName);
 
-    // Create the project directory if it doesn't exist
+    // Create the project directory
     await fs.mkdir(targetDir, { recursive: true });
 
     // Check if template directory exists
@@ -73,32 +73,31 @@ async function generateBackendStructure(projectName, databaseChoice, forceOverwr
     await fs.mkdir(path.join(targetDir, 'middleware'), { recursive: true });
 
     // Define packages to install
-    let packagesToInstall = ['express', 'dotenv', 'cors'];
+    let packagesToInstall = ['express', 'dotenv', 'cors', 'jsonwebtoken'];
     let devPackagesToInstall = ['nodemon'];
     let dbConfig = '';
 
+    // Database configuration
     switch (databaseChoice) {
         case 'MongoDB':
             packagesToInstall.push('mongoose', 'bcryptjs');
             dbConfig = `import mongoose from 'mongoose';
 
-mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/${projectName}', {
+mongoose.connect('${uri || `mongodb://localhost:27017/${projectName}`}', {
   useNewUrlParser: true,
   useUnifiedTopology: true
 });
 
-mongoose.set('strictQuery', true);`;
+mongoose.set('strictQuery', true);
+
+export const database = 'mongodb';`;
             break;
         case 'PostgreSQL':
             packagesToInstall.push('pg', 'bcryptjs');
             dbConfig = `import { Pool } from 'pg';
 
 const pool = new Pool({
-  user: process.env.PGUSER || 'postgres',
-  host: process.env.PGHOST || 'localhost',
-  database: process.env.PGDATABASE || '${projectName}',
-  password: process.env.PGPASSWORD || '',
-  port: process.env.PGPORT || 5432
+  connectionString: '${uri || `postgres://postgres@localhost:5432/${projectName}`}'
 });
 
 await pool.query(
@@ -109,18 +108,16 @@ await pool.query(
   '    password VARCHAR(255) NOT NULL,\\n' +
   '    created_at TIMESTAMP DEFAULT NOW()\\n' +
   ')'
-);`;
+);
+
+export const database = 'postgresql';`;
             break;
         case 'MySQL':
             packagesToInstall.push('mysql2', 'bcryptjs');
             dbConfig = `import mysql from 'mysql2/promise';
 
 const pool = mysql.createPool({
-  host: process.env.MYSQL_HOST || 'localhost',
-  user: process.env.MYSQL_USER || 'root',
-  password: process.env.MYSQL_PASSWORD || '',
-  database: process.env.MYSQL_DATABASE || '${projectName}',
-  port: process.env.MYSQL_PORT || 3306
+  uri: '${uri || `mysql://root@localhost:3306/${projectName}`}'
 });
 
 await pool.query(
@@ -131,7 +128,9 @@ await pool.query(
   '    password VARCHAR(255) NOT NULL,\\n' +
   '    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP\\n' +
   ')'
-);`;
+);
+
+export const database = 'mysql';`;
             break;
         case 'SQLite':
             packagesToInstall.push('sqlite3', 'bcryptjs');
@@ -139,7 +138,7 @@ await pool.query(
 import { open } from 'sqlite';
 
 const db = await open({
-  filename: process.env.SQLITE_DB || './database.sqlite',
+  filename: '${uri || './database.sqlite'}',
   driver: sqlite3.Database
 });
 
@@ -151,7 +150,9 @@ await db.exec(
   '    password TEXT NOT NULL,\\n' +
   '    created_at DATETIME DEFAULT CURRENT_TIMESTAMP\\n' +
   ')'
-);`;
+);
+
+export const database = 'sqlite';`;
             break;
     }
 
@@ -240,6 +241,101 @@ await db.exec(
         process.exit(1);
     }
 
+    // Generate auth controller
+    const authControllerContent = `import jwt from 'jsonwebtoken';
+import { database } from '../config/database.js';
+
+async function loadUserModel() {
+  return (await import(\`../models/user.\${database}.js\`)).default;
+}
+
+const generateToken = (user) => {
+  return jwt.sign(
+    { id: user._id || user.id, email: user.email },
+    process.env.JWT_SECRET || 'your-secret-key',
+    { expiresIn: '1h' }
+  );
+};
+
+export const signup = async (req, res) => {
+  try {
+    const { username, email, password } = req.body;
+    const User = await loadUserModel();
+
+    // Check if user exists
+    const existingUser = await User.findByEmail(email);
+    if (existingUser) {
+      return res.status(400).json({ message: 'User already exists' });
+    }
+
+    // Create new user
+    const user = await User.create({ username, email, password });
+
+    // Generate token
+    const token = generateToken(user);
+
+    res.status(201).json({ user, token });
+  } catch (error) {
+    res.status(500).json({ message: 'Something went wrong' });
+  }
+};
+
+export const login = async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    const User = await loadUserModel();
+
+    // Find user
+    const user = await User.findByEmail(email);
+    if (!user) {
+      return res.status(400).json({ message: 'Invalid credentials' });
+    }
+
+    // Check password
+    const isMatch = await User.comparePassword(password, user.password);
+    if (!isMatch) {
+      return res.status(400).json({ message: 'Invalid credentials' });
+    }
+
+    // Generate token
+    const token = generateToken(user);
+
+    res.status(200).json({ user, token });
+  } catch (error) {
+    res.status(500).json({ message: 'Something went wrong' });
+  }
+};
+`;
+
+    const authControllerPath = path.join(targetDir, 'controllers', 'authController.js');
+    try {
+        if (await fs.stat(authControllerPath).catch(() => false)) {
+            if (forceOverwrite) {
+                await fs.writeFile(authControllerPath, authControllerContent);
+            } else {
+                const { overwrite } = await inquirer.prompt([
+                    {
+                        type: 'confirm',
+                        name: 'overwrite',
+                        message: chalk.yellow('File authController.js already exists. Overwrite?'),
+                        prefix: '⚠️',
+                        default: false,
+                    },
+                ]);
+                if (!overwrite) {
+                    console.log(chalk.blue('Skipping authController.js'));
+                } else {
+                    await fs.writeFile(authControllerPath, authControllerContent);
+                }
+            }
+        } else {
+            await fs.writeFile(authControllerPath, authControllerContent);
+        }
+    } catch (err) {
+        console.error(chalk.red(`Error writing authController.js: ${err}`));
+        process.exit(1);
+    }
+
     // Copy server.js file
     const serverFile = 'server.js';
     const serverPath = path.join(templateDir, serverFile);
@@ -275,9 +371,8 @@ await db.exec(
     // Write database configuration
     await fs.writeFile(path.join(targetDir, 'config', 'database.js'), dbConfig);
 
-    // Copy additional structure (controllers, routes, middleware)
+    // Copy additional structure (routes, middleware)
     const structure = [
-        { src: path.join(templateDir, 'controllers'), dest: path.join(targetDir, 'controllers') },
         { src: path.join(templateDir, 'routes'), dest: path.join(targetDir, 'routes') },
         { src: path.join(templateDir, 'middleware'), dest: path.join(targetDir, 'middleware') },
     ];
@@ -310,7 +405,7 @@ program.action(async (options) => {
     const projectName = options.project || answers.project || 'my-app';
     const database = options.database || answers.database;
 
-    await generateBackendStructure(projectName, database, options.force);
+    await generateBackendStructure(projectName, database, options.force, options.uri);
 });
 
 program.parse(process.argv);
