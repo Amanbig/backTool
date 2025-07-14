@@ -20,6 +20,7 @@ program
     .version('1.0.6')
     .option('-p, --project <name>', 'Specify project name')
     .option('-d, --database <type>', 'Specify database (MongoDB, MySQL, PostgreSQL, SQLite)')
+    .option('-l, --language <type>', 'Specify language (JavaScript, TypeScript)')
     .option('-f, --force', 'Force overwrite of existing files without prompting')
     .option('-u, --uri <uri>', 'Specify database connection URI');
 
@@ -37,6 +38,16 @@ async function promptInputs(options) {
         });
     }
 
+    if (!options.language) {
+        questions.push({
+            type: 'list',
+            name: 'language',
+            message: chalk.green('Which language do you want to use?'),
+            prefix: '💻',
+            choices: ['JavaScript', 'TypeScript'],
+        });
+    }
+
     if (!options.database) {
         questions.push({
             type: 'list',
@@ -50,9 +61,10 @@ async function promptInputs(options) {
     return inquirer.prompt(questions);
 }
 
-async function generateBackendStructure(projectName, databaseChoice, forceOverwrite = false, uri) {
+async function generateBackendStructure(projectName, databaseChoice, languageChoice = 'JavaScript', forceOverwrite = false, uri) {
     const templateDir = path.join(__dirname, 'backtool_folder');
     const targetDir = path.join(process.cwd(), projectName);
+    const fileExt = languageChoice === 'TypeScript' ? '.ts' : '.js';
 
     // Create the project directory
     await fs.mkdir(targetDir, { recursive: true });
@@ -71,88 +83,52 @@ async function generateBackendStructure(projectName, databaseChoice, forceOverwr
     await fs.mkdir(path.join(targetDir, 'controllers'), { recursive: true });
     await fs.mkdir(path.join(targetDir, 'routes'), { recursive: true });
     await fs.mkdir(path.join(targetDir, 'middleware'), { recursive: true });
+    if (languageChoice === 'TypeScript') {
+        await fs.mkdir(path.join(targetDir, 'types'), { recursive: true });
+    }
 
     // Define packages to install
     let packagesToInstall = ['express', 'dotenv', 'cors', 'jsonwebtoken'];
     let devPackagesToInstall = ['nodemon'];
-    let dbConfig = '';
 
-    // Database configuration
+    // Add TypeScript related packages
+    if (languageChoice === 'TypeScript') {
+        devPackagesToInstall.push(
+            'typescript',
+            '@types/node',
+            '@types/express',
+            '@types/cors',
+            '@types/jsonwebtoken',
+            'ts-node',
+            '@types/bcryptjs'
+        );
+    }
+
+    // Database specific packages and types
     switch (databaseChoice) {
         case 'MongoDB':
             packagesToInstall.push('mongoose', 'bcryptjs');
-            dbConfig = `import mongoose from 'mongoose';
-
-mongoose.connect('${uri || `mongodb://localhost:27017/${projectName}`}', {
-  useNewUrlParser: true,
-  useUnifiedTopology: true
-});
-
-mongoose.set('strictQuery', true);
-
-export const database = 'mongodb';`;
+            if (languageChoice === 'TypeScript') {
+                devPackagesToInstall.push('@types/mongoose');
+            }
             break;
         case 'PostgreSQL':
             packagesToInstall.push('pg', 'bcryptjs');
-            dbConfig = `import { Pool } from 'pg';
-
-const pool = new Pool({
-  connectionString: '${uri || `postgres://postgres@localhost:5432/${projectName}`}'
-});
-
-await pool.query(
-  'CREATE TABLE IF NOT EXISTS users (\\n' +
-  '    id SERIAL PRIMARY KEY,\\n' +
-  '    username VARCHAR(255) UNIQUE NOT NULL,\\n' +
-  '    email VARCHAR(255) UNIQUE NOT NULL,\\n' +
-  '    password VARCHAR(255) NOT NULL,\\n' +
-  '    created_at TIMESTAMP DEFAULT NOW()\\n' +
-  ')'
-);
-
-export const database = 'postgresql';`;
+            if (languageChoice === 'TypeScript') {
+                devPackagesToInstall.push('@types/pg');
+            }
             break;
         case 'MySQL':
             packagesToInstall.push('mysql2', 'bcryptjs');
-            dbConfig = `import mysql from 'mysql2/promise';
-
-const pool = mysql.createPool({
-  uri: '${uri || `mysql://root@localhost:3306/${projectName}`}'
-});
-
-await pool.query(
-  'CREATE TABLE IF NOT EXISTS users (\\n' +
-  '    id INT AUTO_INCREMENT PRIMARY KEY,\\n' +
-  '    username VARCHAR(255) UNIQUE NOT NULL,\\n' +
-  '    email VARCHAR(255) UNIQUE NOT NULL,\\n' +
-  '    password VARCHAR(255) NOT NULL,\\n' +
-  '    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP\\n' +
-  ')'
-);
-
-export const database = 'mysql';`;
+            if (languageChoice === 'TypeScript') {
+                devPackagesToInstall.push('@types/mysql2');
+            }
             break;
         case 'SQLite':
             packagesToInstall.push('sqlite3', 'bcryptjs');
-            dbConfig = `import sqlite3 from 'sqlite3';
-import { open } from 'sqlite';
-
-const db = await open({
-  filename: '${uri || './database.sqlite'}',
-  driver: sqlite3.Database
-});
-
-await db.exec(
-  'CREATE TABLE IF NOT EXISTS users (\\n' +
-  '    id INTEGER PRIMARY KEY AUTOINCREMENT,\\n' +
-  '    username TEXT UNIQUE NOT NULL,\\n' +
-  '    email TEXT UNIQUE NOT NULL,\\n' +
-  '    password TEXT NOT NULL,\\n' +
-  '    created_at DATETIME DEFAULT CURRENT_TIMESTAMP\\n' +
-  ')'
-);
-
-export const database = 'sqlite';`;
+            if (languageChoice === 'TypeScript') {
+                devPackagesToInstall.push('@types/sqlite3');
+            }
             break;
     }
 
@@ -160,10 +136,14 @@ export const database = 'sqlite';`;
     const packageJson = {
         name: projectName,
         version: '1.0.0',
-        type: 'module',
+        type: languageChoice === 'JavaScript' ? 'module' : 'commonjs',
         scripts: {
-            start: 'node server.js',
-            dev: 'nodemon server.js',
+            start: languageChoice === 'TypeScript' ? 'ts-node src/server.ts' : 'node server.js',
+            dev: languageChoice === 'TypeScript' ? 'nodemon --exec ts-node src/server.ts' : 'nodemon server.js',
+            ...(languageChoice === 'TypeScript' && {
+                build: 'tsc',
+                'start:prod': 'node dist/server.js'
+            })
         },
         dependencies: {
             express: '^4.18.2',
@@ -177,6 +157,15 @@ export const database = 'sqlite';`;
         },
         devDependencies: {
             nodemon: '^3.0.1',
+            ...(languageChoice === 'TypeScript' && {
+                typescript: '^5.0.0',
+                'ts-node': '^10.9.0',
+                '@types/node': '^18.0.0',
+                '@types/express': '^4.17.0',
+                '@types/cors': '^2.8.0',
+                '@types/jsonwebtoken': '^9.0.0',
+                '@types/bcryptjs': '^2.4.0',
+            })
         },
     };
 
@@ -210,31 +199,32 @@ export const database = 'sqlite';`;
     }
 
     // Copy model file
-    const modelFile = `user.${databaseChoice.toLowerCase()}.js`;
-    const modelPath = path.join(templateDir, 'models', modelFile);
+    const modelSourceFile = `user.${databaseChoice.toLowerCase()}.${languageChoice === 'TypeScript' ? 'ts' : 'js'}`;
+    const modelTargetFile = `user.${databaseChoice.toLowerCase()}${fileExt}`;
+    const modelPath = path.join(templateDir, 'models', modelSourceFile);
     try {
         await fs.access(modelPath);
-        if (await fs.stat(path.join(targetDir, 'models', modelFile)).catch(() => false)) {
+        if (await fs.stat(path.join(targetDir, 'models', modelTargetFile)).catch(() => false)) {
             if (forceOverwrite) {
-                await fs.cp(modelPath, path.join(targetDir, 'models', modelFile));
+                await fs.cp(modelPath, path.join(targetDir, 'models', modelTargetFile));
             } else {
                 const { overwrite } = await inquirer.prompt([
                     {
                         type: 'confirm',
                         name: 'overwrite',
-                        message: chalk.yellow(`File ${modelFile} already exists. Overwrite?`),
+                        message: chalk.yellow(`File ${modelTargetFile} already exists. Overwrite?`),
                         prefix: '⚠️',
                         default: false,
                     },
                 ]);
                 if (!overwrite) {
-                    console.log(chalk.blue(`Skipping ${modelFile}`));
+                    console.log(chalk.blue(`Skipping ${modelTargetFile}`));
                     return;
                 }
-                await fs.cp(modelPath, path.join(targetDir, 'models', modelFile));
+                await fs.cp(modelPath, path.join(targetDir, 'models', modelTargetFile));
             }
         } else {
-            await fs.cp(modelPath, path.join(targetDir, 'models', modelFile));
+            await fs.cp(modelPath, path.join(targetDir, 'models', modelTargetFile));
         }
     } catch (err) {
         console.error(chalk.red(`Model file for ${databaseChoice} not found.`));
@@ -242,72 +232,12 @@ export const database = 'sqlite';`;
     }
 
     // Generate auth controller
-    const authControllerContent = `import jwt from 'jsonwebtoken';
-import { database } from '../config/database.js';
+    const authControllerSourceFile = `authController.${languageChoice === 'TypeScript' ? 'ts' : 'js'}`;
+    const authControllerTargetFile = `authController${fileExt}`;
+    const authControllerSourcePath = path.join(templateDir, 'controllers', authControllerSourceFile);
+    const authControllerContent = await fs.readFile(authControllerSourcePath, 'utf-8');
+    const authControllerPath = path.join(targetDir, 'controllers', authControllerTargetFile);
 
-async function loadUserModel() {
-  return (await import(\`../models/user.\${database}.js\`)).default;
-}
-
-const generateToken = (user) => {
-  return jwt.sign(
-    { id: user._id || user.id, email: user.email },
-    process.env.JWT_SECRET || 'your-secret-key',
-    { expiresIn: '1h' }
-  );
-};
-
-export const signup = async (req, res) => {
-  try {
-    const { username, email, password } = req.body;
-    const User = await loadUserModel();
-
-    // Check if user exists
-    const existingUser = await User.findByEmail(email);
-    if (existingUser) {
-      return res.status(400).json({ message: 'User already exists' });
-    }
-
-    // Create new user
-    const user = await User.create({ username, email, password });
-
-    // Generate token
-    const token = generateToken(user);
-
-    res.status(201).json({ user, token });
-  } catch (error) {
-    res.status(500).json({ message: 'Something went wrong' });
-  }
-};
-
-export const login = async (req, res) => {
-  try {
-    const { email, password } = req.body;
-    const User = await loadUserModel();
-
-    // Find user
-    const user = await User.findByEmail(email);
-    if (!user) {
-      return res.status(400).json({ message: 'Invalid credentials' });
-    }
-
-    // Check password
-    const isMatch = await User.comparePassword(password, user.password);
-    if (!isMatch) {
-      return res.status(400).json({ message: 'Invalid credentials' });
-    }
-
-    // Generate token
-    const token = generateToken(user);
-
-    res.status(200).json({ user, token });
-  } catch (error) {
-    res.status(500).json({ message: 'Something went wrong' });
-  }
-};
-`;
-
-    const authControllerPath = path.join(targetDir, 'controllers', 'authController.js');
     try {
         if (await fs.stat(authControllerPath).catch(() => false)) {
             if (forceOverwrite) {
@@ -317,13 +247,13 @@ export const login = async (req, res) => {
                     {
                         type: 'confirm',
                         name: 'overwrite',
-                        message: chalk.yellow('File authController.js already exists. Overwrite?'),
+                        message: chalk.yellow(`File authController.${fileExt} already exists. Overwrite?`),
                         prefix: '⚠️',
                         default: false,
                     },
                 ]);
                 if (!overwrite) {
-                    console.log(chalk.blue('Skipping authController.js'));
+                    console.log(chalk.blue(`Skipping authController.${fileExt}`));
                 } else {
                     await fs.writeFile(authControllerPath, authControllerContent);
                 }
@@ -332,56 +262,214 @@ export const login = async (req, res) => {
             await fs.writeFile(authControllerPath, authControllerContent);
         }
     } catch (err) {
-        console.error(chalk.red(`Error writing authController.js: ${err}`));
+        console.error(chalk.red(`Error writing authController.${fileExt}: ${err}`));
         process.exit(1);
     }
 
-    // Copy server.js file
-    const serverFile = 'server.js';
-    const serverPath = path.join(templateDir, serverFile);
+    // Copy server file
+    const serverSourceFile = `server.${languageChoice === 'TypeScript' ? 'ts' : 'js'}`;
+    const serverTargetFile = `server${fileExt}`;
+    const serverPath = path.join(templateDir, serverSourceFile);
     try {
         await fs.access(serverPath);
-        if (await fs.stat(path.join(targetDir, serverFile)).catch(() => false)) {
+        if (await fs.stat(path.join(targetDir, serverTargetFile)).catch(() => false)) {
             if (forceOverwrite) {
-                await fs.cp(serverPath, path.join(targetDir, serverFile));
+                await fs.cp(serverPath, path.join(targetDir, serverTargetFile));
             } else {
                 const { overwrite } = await inquirer.prompt([
                     {
                         type: 'confirm',
                         name: 'overwrite',
-                        message: chalk.yellow(`File ${serverFile} already exists. Overwrite?`),
+                        message: chalk.yellow(`File ${serverTargetFile} already exists. Overwrite?`),
                         prefix: '⚠️',
                         default: false,
                     },
                 ]);
                 if (!overwrite) {
-                    console.log(chalk.blue(`Skipping ${serverFile}`));
+                    console.log(chalk.blue(`Skipping ${serverTargetFile}`));
                 } else {
-                    await fs.cp(serverPath, path.join(targetDir, serverFile));
+                    await fs.cp(serverPath, path.join(targetDir, serverTargetFile));
                 }
             }
         } else {
-            await fs.cp(serverPath, path.join(targetDir, serverFile));
+            await fs.cp(serverPath, path.join(targetDir, serverTargetFile));
         }
     } catch (err) {
-        console.error(chalk.red(`Server file (server.js) not found in backtool_folder.`));
+        console.error(chalk.red(`Server file (${serverSourceFile}) not found in backtool_folder.`));
         process.exit(1);
     }
 
+    // Copy TypeScript configuration if needed
+    if (languageChoice === 'TypeScript') {
+        try {
+            await fs.cp(
+                path.join(templateDir, 'tsconfig.json'),
+                path.join(targetDir, 'tsconfig.json')
+            );
+            await fs.mkdir(path.join(targetDir, 'src'), { recursive: true });
+            await fs.mkdir(path.join(targetDir, 'dist'), { recursive: true });
+            await fs.mkdir(path.join(targetDir, 'types'), { recursive: true });
+            
+            // Copy express.d.ts
+            await fs.cp(
+                path.join(templateDir, 'types', 'express.d.ts'),
+                path.join(targetDir, 'types', 'express.d.ts')
+            );
+        } catch (err) {
+            console.error(chalk.red('Error setting up TypeScript configuration:', err));
+            process.exit(1);
+        }
+    }
+
     // Write database configuration
-    await fs.writeFile(path.join(targetDir, 'config', 'database.js'), dbConfig);
+    let dbConfig = '';
+
+    // Database configuration
+    switch (databaseChoice) {
+        case 'MongoDB':
+            dbConfig = `import mongoose from 'mongoose';
+
+mongoose.connect('${uri || `mongodb://localhost:27017/${projectName}`}', {
+  useNewUrlParser: true,
+  useUnifiedTopology: true
+});
+
+mongoose.set('strictQuery', true);
+
+export const database = 'mongodb';`;
+            break;
+        case 'PostgreSQL':
+            dbConfig = `import { Pool } from 'pg';
+
+const pool = new Pool({
+  connectionString: '${uri || `postgres://postgres@localhost:5432/${projectName}`}'
+});
+
+await pool.query(
+  'CREATE TABLE IF NOT EXISTS users (\\n' +
+  '    id SERIAL PRIMARY KEY,\\n' +
+  '    username VARCHAR(255) UNIQUE NOT NULL,\\n' +
+  '    email VARCHAR(255) UNIQUE NOT NULL,\\n' +
+  '    password VARCHAR(255) NOT NULL,\\n' +
+  '    created_at TIMESTAMP DEFAULT NOW()\\n' +
+  ')'
+);
+
+export const database = 'postgresql';`;
+            break;
+        case 'MySQL':
+            dbConfig = `import mysql from 'mysql2/promise';
+
+const pool = mysql.createPool({
+  uri: '${uri || `mysql://root@localhost:3306/${projectName}`}'
+});
+
+await pool.query(
+  'CREATE TABLE IF NOT EXISTS users (\\n' +
+  '    id INT AUTO_INCREMENT PRIMARY KEY,\\n' +
+  '    username VARCHAR(255) UNIQUE NOT NULL,\\n' +
+  '    email VARCHAR(255) UNIQUE NOT NULL,\\n' +
+  '    password VARCHAR(255) NOT NULL,\\n' +
+  '    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP\\n' +
+  ')'
+);
+
+export const database = 'mysql';`;
+            break;
+        case 'SQLite':
+            dbConfig = `import sqlite3 from 'sqlite3';
+import { open } from 'sqlite';
+
+const db = await open({
+  filename: '${uri || './database.sqlite'}',
+  driver: sqlite3.Database
+});
+
+await db.exec(
+  'CREATE TABLE IF NOT EXISTS users (\\n' +
+  '    id INTEGER PRIMARY KEY AUTOINCREMENT,\\n' +
+  '    username TEXT UNIQUE NOT NULL,\\n' +
+  '    email TEXT UNIQUE NOT NULL,\\n' +
+  '    password TEXT NOT NULL,\\n' +
+  '    created_at DATETIME DEFAULT CURRENT_TIMESTAMP\\n' +
+  ')'
+);
+
+export const database = 'sqlite';`;
+            break;
+    }
+
+    await fs.writeFile(path.join(targetDir, 'config', `database${fileExt}`), dbConfig);
 
     // Copy additional structure (routes, middleware)
     const structure = [
-        { src: path.join(templateDir, 'routes'), dest: path.join(targetDir, 'routes') },
-        { src: path.join(templateDir, 'middleware'), dest: path.join(targetDir, 'middleware') },
+        { 
+            files: ['auth'],
+            dir: 'routes'
+        },
+        { 
+            files: ['auth'],
+            dir: 'middleware'
+        }
     ];
 
-    for (const { src, dest } of structure) {
-        try {
-            await fs.cp(src, dest, { recursive: true });
-        } catch (err) {
-            console.error(chalk.red(`Error copying ${src}: ${err}`));
+    for (const { files, dir } of structure) {
+        for (const file of files) {
+            const sourceFile = `${file}.${languageChoice === 'TypeScript' ? 'ts' : 'js'}`;
+            const targetFile = `${file}${fileExt}`;
+            const sourcePath = path.join(templateDir, dir, sourceFile);
+            // Use only the dir once in the target path
+            const targetPath = path.join(targetDir, dir, targetFile);
+
+            try {
+                // console.log(chalk.blue(`Attempting to copy ${sourceFile} to ${targetFile}`));
+                // console.log(chalk.blue(`Source path: ${sourcePath}`));
+                // console.log(chalk.blue(`Target path: ${targetPath}`));
+
+                // First check if source file exists
+                try {
+                    await fs.access(sourcePath);
+                    // console.log(chalk.green(`Source file exists: ${sourcePath}`));
+                } catch (err) {
+                    // console.error(chalk.red(`Source file not found: ${sourcePath}`));
+                    continue;
+                }
+
+                // Check if target file exists
+                const targetExists = await fs.stat(targetPath).catch(() => false);
+                
+                if (targetExists) {
+                    if (forceOverwrite) {
+                        await fs.copyFile(sourcePath, targetPath);
+                        console.log(chalk.green(`Forcefully copied ${sourceFile} to ${targetFile}`));
+                    } else {
+                        const { overwrite } = await inquirer.prompt([
+                            {
+                                type: 'confirm',
+                                name: 'overwrite',
+                                message: chalk.yellow(`File ${targetFile} already exists. Overwrite?`),
+                                prefix: '⚠️',
+                                default: false,
+                            },
+                        ]);
+                        if (!overwrite) {
+                            console.log(chalk.blue(`Skipping ${targetFile}`));
+                            continue;
+                        }
+                        await fs.copyFile(sourcePath, targetPath);
+                        console.log(chalk.green(`Copied ${sourceFile} to ${targetFile} after confirmation`));
+                    }
+                } else {
+                    await fs.copyFile(sourcePath, targetPath);
+                    // console.log(chalk.green(`Copied ${sourceFile} to ${targetFile}`));
+                }
+            } catch (err) {
+                console.error(chalk.red(`Error handling ${sourceFile}:`));
+                console.error(chalk.red(err.message));
+                if (err.code) {
+                    console.error(chalk.red(`Error code: ${err.code}`));
+                }
+            }
         }
     }
 
@@ -404,8 +492,9 @@ program.action(async (options) => {
     const answers = await promptInputs(options);
     const projectName = options.project || answers.project || 'my-app';
     const database = options.database || answers.database;
+    const language = options.language || answers.language || 'JavaScript';
 
-    await generateBackendStructure(projectName, database, options.force, options.uri);
+    await generateBackendStructure(projectName, database, language, options.force, options.uri);
 });
 
 program.parse(process.argv);
