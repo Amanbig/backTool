@@ -78,12 +78,16 @@ async function generateBackendStructure(projectName, databaseChoice, languageCho
     }
 
     // Create target directories
-    await fs.mkdir(path.join(targetDir, 'models'), { recursive: true });
-    await fs.mkdir(path.join(targetDir, 'config'), { recursive: true });
-    await fs.mkdir(path.join(targetDir, 'controllers'), { recursive: true });
-    await fs.mkdir(path.join(targetDir, 'routes'), { recursive: true });
-    await fs.mkdir(path.join(targetDir, 'middleware'), { recursive: true });
+    const baseDir = languageChoice === 'TypeScript' ? path.join(targetDir, 'src') : targetDir;
+    
+    await fs.mkdir(path.join(baseDir, 'models'), { recursive: true });
+    await fs.mkdir(path.join(baseDir, 'config'), { recursive: true });
+    await fs.mkdir(path.join(baseDir, 'controllers'), { recursive: true });
+    await fs.mkdir(path.join(baseDir, 'routes'), { recursive: true });
+    await fs.mkdir(path.join(baseDir, 'middleware'), { recursive: true });
+    
     if (languageChoice === 'TypeScript') {
+        await fs.mkdir(path.join(targetDir, 'dist'), { recursive: true });
         await fs.mkdir(path.join(targetDir, 'types'), { recursive: true });
     }
 
@@ -138,8 +142,8 @@ async function generateBackendStructure(projectName, databaseChoice, languageCho
         version: '1.0.0',
         type: languageChoice === 'JavaScript' ? 'module' : 'commonjs',
         scripts: {
-            start: languageChoice === 'TypeScript' ? 'ts-node src/server.ts' : 'node server.js',
-            dev: languageChoice === 'TypeScript' ? 'nodemon --exec ts-node src/server.ts' : 'nodemon server.js',
+            start: languageChoice === 'TypeScript' ? 'ts-node server.ts' : 'node server.js',
+            dev: languageChoice === 'TypeScript' ? 'nodemon --exec ts-node server.ts' : 'nodemon server.js',
             ...(languageChoice === 'TypeScript' && {
                 build: 'tsc',
                 'start:prod': 'node dist/server.js'
@@ -204,9 +208,9 @@ async function generateBackendStructure(projectName, databaseChoice, languageCho
     const modelPath = path.join(templateDir, 'models', modelSourceFile);
     try {
         await fs.access(modelPath);
-        if (await fs.stat(path.join(targetDir, 'models', modelTargetFile)).catch(() => false)) {
+        if (await fs.stat(path.join(baseDir, 'models', modelTargetFile)).catch(() => false)) {
             if (forceOverwrite) {
-                await fs.cp(modelPath, path.join(targetDir, 'models', modelTargetFile));
+                await fs.cp(modelPath, path.join(baseDir, 'models', modelTargetFile));
             } else {
                 const { overwrite } = await inquirer.prompt([
                     {
@@ -221,10 +225,10 @@ async function generateBackendStructure(projectName, databaseChoice, languageCho
                     console.log(chalk.blue(`Skipping ${modelTargetFile}`));
                     return;
                 }
-                await fs.cp(modelPath, path.join(targetDir, 'models', modelTargetFile));
+                await fs.cp(modelPath, path.join(baseDir, 'models', modelTargetFile));
             }
         } else {
-            await fs.cp(modelPath, path.join(targetDir, 'models', modelTargetFile));
+            await fs.cp(modelPath, path.join(baseDir, 'models', modelTargetFile));
         }
     } catch (err) {
         console.error(chalk.red(`Model file for ${databaseChoice} not found.`));
@@ -236,7 +240,7 @@ async function generateBackendStructure(projectName, databaseChoice, languageCho
     const authControllerTargetFile = `authController${fileExt}`;
     const authControllerSourcePath = path.join(templateDir, 'controllers', authControllerSourceFile);
     const authControllerContent = await fs.readFile(authControllerSourcePath, 'utf-8');
-    const authControllerPath = path.join(targetDir, 'controllers', authControllerTargetFile);
+    const authControllerPath = path.join(baseDir, 'controllers', authControllerTargetFile);
 
     try {
         if (await fs.stat(authControllerPath).catch(() => false)) {
@@ -329,10 +333,7 @@ async function generateBackendStructure(projectName, databaseChoice, languageCho
         case 'MongoDB':
             dbConfig = `import mongoose from 'mongoose';
 
-mongoose.connect('${uri || `mongodb://localhost:27017/${projectName}`}', {
-  useNewUrlParser: true,
-  useUnifiedTopology: true
-});
+mongoose.connect('${uri || `mongodb://localhost:27017/${projectName}`}');
 
 mongoose.set('strictQuery', true);
 
@@ -399,7 +400,7 @@ export const database = 'sqlite';`;
             break;
     }
 
-    await fs.writeFile(path.join(targetDir, 'config', `database${fileExt}`), dbConfig);
+    await fs.writeFile(path.join(baseDir, 'config', `database${fileExt}`), dbConfig);
 
     // Copy additional structure (routes, middleware)
     const structure = [
@@ -419,7 +420,7 @@ export const database = 'sqlite';`;
             const targetFile = `${file}${fileExt}`;
             const sourcePath = path.join(templateDir, dir, sourceFile);
             // Use only the dir once in the target path
-            const targetPath = path.join(targetDir, dir, targetFile);
+            const targetPath = path.join(baseDir, dir, targetFile);
 
             try {
                 // console.log(chalk.blue(`Attempting to copy ${sourceFile} to ${targetFile}`));
