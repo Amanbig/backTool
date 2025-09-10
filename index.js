@@ -8,8 +8,11 @@ import { promises as fs } from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import npm from 'npm-programmatic';
+import { exec } from 'child_process';
+import { promisify } from 'util';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const execAsync = promisify(exec);
 
 // Display ASCII art banner
 console.log(chalk.cyan(figlet.textSync('BackTool')));
@@ -17,7 +20,7 @@ console.log(chalk.cyan(figlet.textSync('BackTool')));
 program
     .name('backtool')
     .description('CLI tool to generate backend structures for Node.js applications')
-    .version('1.0.6')
+    .version('1.2.0')
     .option('-p, --project <name>', 'Specify project name')
     .option('-d, --database <type>', 'Specify database (MongoDB, MySQL, PostgreSQL, SQLite)')
     .option('-l, --language <type>', 'Specify language (JavaScript, TypeScript)')
@@ -68,6 +71,16 @@ async function generateBackendStructure(projectName, databaseChoice, languageCho
 
     // Create the project directory
     await fs.mkdir(targetDir, { recursive: true });
+
+    // Initialize git repository
+    const gitSpinner = ora(chalk.blue('Initializing git repository...')).start();
+    try {
+        await execAsync('git init', { cwd: targetDir });
+        gitSpinner.succeed(chalk.green('Git repository initialized'));
+    } catch (gitError) {
+        gitSpinner.warn(chalk.yellow('Git initialization failed - continuing without git...'));
+        console.log(chalk.yellow('⚠️  Git not found or failed to initialize. You can initialize git manually later with: git init'));
+    }
 
     // Check if template directory exists
     try {
@@ -472,6 +485,78 @@ export const database = 'sqlite';`;
                 }
             }
         }
+    }
+
+    // Copy .env.example to .env
+    const envExamplePath = path.join(templateDir, '.env.example');
+    const envTargetPath = path.join(targetDir, '.env');
+    try {
+        await fs.access(envExamplePath);
+        const envExists = await fs.stat(envTargetPath).catch(() => false);
+        
+        if (envExists) {
+            if (forceOverwrite) {
+                await fs.copyFile(envExamplePath, envTargetPath);
+                console.log(chalk.green('Environment file (.env) created from template'));
+            } else {
+                const { overwrite } = await inquirer.prompt([
+                    {
+                        type: 'confirm',
+                        name: 'overwrite',
+                        message: chalk.yellow('File .env already exists. Overwrite?'),
+                        prefix: '⚠️',
+                        default: false,
+                    },
+                ]);
+                if (overwrite) {
+                    await fs.copyFile(envExamplePath, envTargetPath);
+                    console.log(chalk.green('Environment file (.env) created from template'));
+                } else {
+                    console.log(chalk.blue('Skipping .env file'));
+                }
+            }
+        } else {
+            await fs.copyFile(envExamplePath, envTargetPath);
+            console.log(chalk.green('Environment file (.env) created from template'));
+        }
+    } catch (err) {
+        console.log(chalk.yellow('⚠️  .env.example template not found - skipping .env creation'));
+    }
+
+    // Copy .gitignore
+    const gitignorePath = path.join(templateDir, '.gitignore');
+    const gitignoreTargetPath = path.join(targetDir, '.gitignore');
+    try {
+        await fs.access(gitignorePath);
+        const gitignoreExists = await fs.stat(gitignoreTargetPath).catch(() => false);
+        
+        if (gitignoreExists) {
+            if (forceOverwrite) {
+                await fs.copyFile(gitignorePath, gitignoreTargetPath);
+                console.log(chalk.green('.gitignore file created'));
+            } else {
+                const { overwrite } = await inquirer.prompt([
+                    {
+                        type: 'confirm',
+                        name: 'overwrite',
+                        message: chalk.yellow('File .gitignore already exists. Overwrite?'),
+                        prefix: '⚠️',
+                        default: false,
+                    },
+                ]);
+                if (overwrite) {
+                    await fs.copyFile(gitignorePath, gitignoreTargetPath);
+                    console.log(chalk.green('.gitignore file created'));
+                } else {
+                    console.log(chalk.blue('Skipping .gitignore file'));
+                }
+            }
+        } else {
+            await fs.copyFile(gitignorePath, gitignoreTargetPath);
+            console.log(chalk.green('.gitignore file created'));
+        }
+    } catch (err) {
+        console.log(chalk.yellow('⚠️  .gitignore template not found - skipping .gitignore creation'));
     }
 
     // Install packages

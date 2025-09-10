@@ -18,6 +18,8 @@ BackTool simplifies the process of setting up a Node.js backend by generating a 
 - **Complete Backend Structure**: Creates `server.js`, `package.json`, and directories for `models`, `config`, `controllers`, `routes`, and `middleware`.
 - **Customized package.json**: Generates a `package.json` with the project name, scripts (`start`, `dev`), and dependencies.
 - **Automatic Package Installation**: Installs required dependencies (e.g., `express`, `mongoose`, `pg`, `mysql2`, `sqlite3`) and `nodemon` as a dev dependency.
+- **Git Initialization**: Automatically initializes a Git repository in the generated project with proper .gitignore setup.
+- **Environment Configuration**: Includes `.env.example` template that gets copied to `.env` for easy environment setup.
 - **File Overwrite Protection**: Prompts users before overwriting existing files (e.g., `server.js`, `package.json`, model files).
 - **Extensible**: Easily add new databases or structure components by updating the template folder.
 
@@ -82,6 +84,8 @@ Running BackTool creates one of the following directory structures based on the 
 my-app/
 ├── server.js
 ├── package.json
+├── .env
+├── .gitignore
 ├── config/
 │   └── database.js
 ├── models/
@@ -93,7 +97,7 @@ my-app/
 ├── middleware/
 │   └── auth.js
 ├── node_modules/
-└── .env
+└── .git/
 ```
 
 ### TypeScript Structure
@@ -102,6 +106,8 @@ my-app/
 ├── server.ts
 ├── package.json
 ├── tsconfig.json
+├── .env
+├── .gitignore
 ├── src/
 │   ├── config/
 │   │   └── database.ts
@@ -117,7 +123,7 @@ my-app/
 │       └── express.d.ts
 ├── dist/           # Compiled JavaScript
 ├── node_modules/
-└── .env
+└── .git/
 ```
 
 - **server.[js|ts]**: Entry point for the Node.js application, setting up the Express server and routes.
