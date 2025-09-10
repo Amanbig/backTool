@@ -2,7 +2,7 @@ name: Publish to npm and GitHub Packages
 
 on:
   push:
-    branches: [ main ]
+    branches: [ master ]
   workflow_dispatch: # Allow manual triggering
 
 jobs:
@@ -70,7 +70,7 @@ jobs:
           if npm publish --access public; then
             echo "✅ Successfully published to npm"
           else
-            if npm view create-nextpy-app@${{ needs.check-version.outputs.version }} > /dev/null 2>&1; then
+            if npm view ${{ needs.check-version.outputs.package-name }}@${{ needs.check-version.outputs.version }} > /dev/null 2>&1; then
               echo "⚠️ Version ${{ needs.check-version.outputs.version }} already exists on npm - skipping"
             else
               echo "❌ Failed to publish to npm for unknown reason"
